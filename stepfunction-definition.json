@@ -1,0 +1,98 @@
+{
+  "Comment": "This is your state machine",
+  "StartAt": "Pass",
+  "States": {
+    "Pass": {
+      "Type": "Pass",
+      "Next": "Parallel"
+    },
+    "Parallel": {
+      "Type": "Parallel",
+      "Branches": [
+        {
+          "StartAt": "Glue StartJobRun",
+          "States": {
+            "Glue StartJobRun": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::glue:startJobRun.sync",
+              "Parameters": {
+                "JobName": "mysqltoredshift"
+              },
+              "OutputPath": "$.JobRunState",
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "Glue StartJobRun (1)",
+          "States": {
+            "Glue StartJobRun (1)": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::glue:startJobRun.sync",
+              "Parameters": {
+                "JobName": "redshift-table2"
+              },
+              "OutputPath": "$.JobRunState",
+              "End": true
+            }
+          }
+        }
+      ],
+      "Next": "Pass (1)"
+    },
+    "Pass (1)": {
+      "Type": "Pass",
+      "Next": "Choice"
+    },
+    "Choice": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "And": [
+            {
+              "Variable": "$[0]",
+              "StringMatches": "SUCCEEDED"
+            },
+            {
+              "Variable": "$[1]",
+              "StringMatches": "SUCCEEDED"
+            }
+          ],
+          "Next": "Lambda Invoke"
+        }
+      ],
+      "Default": "SNS Publish"
+    },
+    "Lambda Invoke": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "OutputPath": "$.Payload",
+      "Parameters": {
+        "Payload.$": "$",
+        "FunctionName": "arn:aws:lambda:us-west-2:240778039237:function:callredshift:$LATEST"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 6,
+          "BackoffRate": 2
+        }
+      ],
+      "End": true
+    },
+    "SNS Publish": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Parameters": {
+        "Message.$": "$",
+        "TopicArn": "arn:aws:sns:us-west-2:240778039237:amplify_codecommit_topic"
+      },
+      "End": true
+    }
+  }
+}
