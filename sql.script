@@ -1,0 +1,31 @@
+CREATE TABLE table1 (
+    id BIGINT,
+    transaction_date DATETIME,
+    pair VARCHAR(30),
+    amount BIGINT,
+    userid BIGINT,
+    price DECIMAL(36,18),
+    type VARCHAR(30),
+    status SMALLINT,
+    PRIMARY KEY (id)
+);
+
+CREATE TABLE table2 (
+   id BIGINT,
+   last_modified DATETIME,
+   create_date DATETIME,
+   name VARCHAR(30),
+   phone BIGINT,
+   PRIMARY KEY (id)
+);
+
+
+CREATE OR REPLACE PROCEDURE test_sp1(f1 IN BIGINT, f2 OUT BIGINT)
+AS $$
+DECLARE
+  min_val int;
+BEGIN
+  SELECT INTO f2 SUM(amount) FROM table1;
+  RAISE INFO 'f2 = %', f2;
+END;
+$$ LANGUAGE plpgsql;
